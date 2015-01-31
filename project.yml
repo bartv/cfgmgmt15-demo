@@ -1,0 +1,6 @@
+name: demo
+description: Impera demo
+modulepath: libs
+downloadpath: libs
+requires:
+    demo: git@github.com:bartv/demo-drupal-cluster, ">= 0.1b1"

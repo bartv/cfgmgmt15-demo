@@ -1,0 +1,42 @@
+"""
+    Copyright 2015 Impera
+    Contact: bart@impera.io
+
+    CfgMgmtCamp 2015 Demo
+"""
+iaas = vm::IaaS(name="aws", route_script="")
+aws::AWSConfig(iaas=iaas, region="eu-central-1", access_key=std::password("aws_id"),
+               secret_key=std::password("aws_secret"), availability_zone="a")
+
+fedora21_img = vm::Image(name="fedora 21", id="ami-28deef35", os=redhat::fedora21, user="fedora",
+                         key=ssh_key)
+
+ssh_key = ssh::Key(name="bartvb", public_key=std::source("demo/bartvb_key.pub"))
+
+impera_cluster = demo::ManagedCluster(domainname="demo.impera.io", iaas=iaas)
+
+mgmt_vm = vm::Host(name="mgmt", image=fedora21_img.id, os=fedora21_img.os, iaas=iaas,
+                 public_key=fedora21_img.key, flavor="m3.medium", impera_cluster_master=impera_cluster)
+
+db_vm = vm::Host(name="db-1", image=fedora21_img.id, os=fedora21_img.os, iaas=iaas,
+                 public_key=fedora21_img.key, flavor="m3.medium", impera_cluster=impera_cluster)
+mysql_server=mysql::Server(host=db_vm)
+
+drupal_db=mysql::Database(server=mysql_server, name="drupal_impera", user="drupal_impera",
+                          password=std::generate_password("drupal_impera"))
+
+lb_vm = vm::Host(name="lb-1", image=fedora21_img.id, os=fedora21_img.os, iaas=iaas,
+                 public_key=fedora21_img.key, flavor="m3.medium", impera_cluster=impera_cluster)
+
+lb = varnish::Proxy(host=lb_vm)
+#lb = aws::LoadBalancer(iaas=iaas)
+
+alias = web::Alias(hostname="demo.impera.io")
+lb_app = web::LoadBalancedApplication(name=alias, loadbalancer=lb)
+
+drupal_app = demo::DrupalCluster(name=alias, admin_user="root", admin_password="pw", database=drupal_db,
+                             admin_email="admin@demo.impera.io", site_name="Impera Demo",
+                             cluster_size=3, loadbalancer=lb_app, image=fedora21_img, iaas=iaas,
+                             impera_cluster=impera_cluster)
+
+
